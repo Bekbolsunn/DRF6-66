@@ -1,23 +1,26 @@
-from django.db import transaction
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from django.contrib.auth.models import User
-from django.contrib.auth import authenticate
-from rest_framework.authtoken.models import Token
-from rest_framework.generics import CreateAPIView
-
-from .serializers import (
-    RegisterValidateSerializer,
-    AuthValidateSerializer,
-    ConfirmationSerializer
-)
-from .models import ConfirmationCode
 import random
 import string
 
+from django.contrib.auth import authenticate
+# from django.contrib.auth.models import User
+from django.db import transaction
+from rest_framework import status
+from rest_framework.authtoken.models import Token
+from rest_framework.generics import CreateAPIView
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-class AuthorizationAPIView(APIView):
+from users.models import ConfirmationCode, CustomUser
+from .serializers import (
+    AuthValidateSerializer,
+    ConfirmationSerializer,
+    RegisterValidateSerializer,
+)
+
+
+class AuthorizationAPIView(CreateAPIView):
+    serializer_class = AuthValidateSerializer
+
     def post(self, request):
         serializer = AuthValidateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -28,15 +31,15 @@ class AuthorizationAPIView(APIView):
             if not user.is_active:
                 return Response(
                     status=status.HTTP_401_UNAUTHORIZED,
-                    data={'error': 'User account is not activated yet!'}
+                    data={"error": "User account is not activated yet!"},
                 )
 
             token, _ = Token.objects.get_or_create(user=user)
-            return Response(data={'key': token.key})
+            return Response(data={"key": token.key})
 
         return Response(
             status=status.HTTP_401_UNAUTHORIZED,
-            data={'error': 'User credentials are wrong!'}
+            data={"error": "User credentials are wrong!"},
         )
 
 
@@ -47,43 +50,37 @@ class RegistrationAPIView(CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        username = serializer.validated_data['username']
-        password = serializer.validated_data['password']
+        email = serializer.validated_data["email"]
+        password = serializer.validated_data["password"]
 
         # Use transaction to ensure data consistency
         with transaction.atomic():
-            user = User.objects.create_user(
-                username=username,
-                password=password,
-                is_active=False
+            user = CustomUser.objects.create_user(
+                email=email, password=password, is_active=False
             )
 
             # Create a random 6-digit code
-            code = ''.join(random.choices(string.digits, k=6))
+            code = "".join(random.choices(string.digits, k=6))
 
-            confirmation_code = ConfirmationCode.objects.create(
-                user=user,
-                code=code
-            )
+            confirmation_code = ConfirmationCode.objects.create(user=user, code=code)
 
         return Response(
             status=status.HTTP_201_CREATED,
-            data={
-                'user_id': user.id,
-                'confirmation_code': code
-            }
+            data={"user_id": user.id, "confirmation_code": code},
         )
 
 
-class ConfirmUserAPIView(APIView):
+class ConfirmUserAPIView(CreateAPIView):
+    serializer_class = ConfirmationSerializer
+
     def post(self, request):
         serializer = ConfirmationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        user_id = serializer.validated_data['user_id']
+        user_id = serializer.validated_data["user_id"]
 
         with transaction.atomic():
-            user = User.objects.get(id=user_id)
+            user = CustomUser.objects.get(id=user_id)
             user.is_active = True
             user.save()
 
@@ -93,8 +90,5 @@ class ConfirmUserAPIView(APIView):
 
         return Response(
             status=status.HTTP_200_OK,
-            data={
-                'message': 'User аккаунт успешно активирован',
-                'key': token.key
-            }
+            data={"message": "User аккаунт успешно активирован", "key": token.key},
         )
