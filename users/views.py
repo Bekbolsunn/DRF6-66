@@ -16,6 +16,7 @@ from .serializers import (
     ConfirmationSerializer,
     RegisterValidateSerializer,
 )
+from rest_framework import permissions
 
 
 class AuthorizationAPIView(CreateAPIView):
@@ -45,6 +46,7 @@ class AuthorizationAPIView(CreateAPIView):
 
 class RegistrationAPIView(CreateAPIView):
     serializer_class = RegisterValidateSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
