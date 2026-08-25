@@ -69,9 +69,13 @@ class ProductListCreateAPIView(ListCreateAPIView):
     queryset = Product.objects.select_related('category').all()
     serializer_class = ProductSerializer
     pagination_class = CustomPagination
-    permission_classes = (IsAuth | IsAnon)
+    permission_classes = (IsAuth | IsAnon,)
 
     def post(self, request, *args, **kwargs):
+        token_data = request.auth.get("email")
+        print(f"email: {token_data}")
+        user_id = request.auth.get("user_id")
+
         serializer = ProductValidateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -86,7 +90,8 @@ class ProductListCreateAPIView(ListCreateAPIView):
             title=title,
             description=description,
             price=price,
-            category=category
+            category=category,
+            owner_id=user_id
         )
 
         return Response(data=ProductSerializer(product).data,

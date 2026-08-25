@@ -11,12 +11,18 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from users.models import ConfirmationCode, CustomUser
-from .serializers import (
+from users.serializers import (
     AuthValidateSerializer,
     ConfirmationSerializer,
     RegisterValidateSerializer,
+    CustomTokenObtainPairSerializer,
 )
 from rest_framework import permissions
+from rest_framework_simplejwt.views import TokenObtainPairView
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
 
 
 class AuthorizationAPIView(CreateAPIView):
