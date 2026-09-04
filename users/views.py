@@ -52,7 +52,6 @@ class AuthorizationAPIView(CreateAPIView):
 
 class RegistrationAPIView(CreateAPIView):
     serializer_class = RegisterValidateSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -71,10 +70,11 @@ class RegistrationAPIView(CreateAPIView):
             code = "".join(random.choices(string.digits, k=6))
 
             confirmation_code = ConfirmationCode.objects.create(user=user, code=code)
-
+            from users.tasks import send_otp_mail
+            send_otp_mail.delay(email, code)
         return Response(
             status=status.HTTP_201_CREATED,
-            data={"user_id": user.id, "confirmation_code": code},
+            data={"user_id": user.id},
         )
 
 
